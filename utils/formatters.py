@@ -21,8 +21,12 @@ def format_movie_message(movie: MovieResult) -> str:
         if not plot.endswith("."):
             plot += "."
 
-    # Rating
-    rating_line = f"Rating: {movie.rating}/10" if movie.rating else "Rating: N/A"
+    # Rating (round to 1 decimal place)
+    try:
+        rating_val = round(float(movie.rating), 1)
+        rating_line = f"Rating: {rating_val}/10" if rating_val > 0 else "Rating: N/A"
+    except (ValueError, TypeError):
+        rating_line = "Rating: N/A"
 
     # Media type hashtag
     media_type_tag = "#series" if movie.media_type == "series" else "#film"
