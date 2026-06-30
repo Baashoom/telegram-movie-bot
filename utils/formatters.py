@@ -52,7 +52,4 @@ def format_movie_message(movie: MovieResult) -> str:
 
 
 def format_not_found_message(title: str) -> str:
-    """
-    Format a "not found" message.
-    """
-    return f"Sorry, I couldn't find this movie or series."
+    return f"\"{title}\" پیدا نشد."
