@@ -1,0 +1,8 @@
+# Telegram Bot Token from @BotFather
+BOT_TOKEN=AAHJcrj9uox7F4xrahxlojAp85IVy79nMjs
+
+# TMDB API Key from themoviedb.org
+TMDB_API_KEY=your_tmdb_api_key_here
+
+# YouTube API Key from Google Cloud Console
+YOUTUBE_API_KEY=your_youtube_api_key_here
