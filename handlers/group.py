@@ -1,15 +1,10 @@
 import logging
-from typing import Optional
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
 from services.search import search_movie, parse_search_query
 from utils.formatters import format_movie_message, format_not_found_message
-from config import BOT_TOKEN
 
 logger = logging.getLogger(__name__)
-
-# Simple rate limiting (in-memory)
-user_search_counts = {}
 
 
 async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -18,11 +13,20 @@ async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYP
     """
     message = update.message
     if not message or not message.text:
+        logger.info("No message or text in group update")
         return
 
-    # Check if bot is mentioned
+    print(f"Group message received: {message.text}")
+    print(f"Chat type: {message.chat.type}")
+    print(f"Chat ID: {message.chat_id}")
+
     bot_username = context.bot.username
-    if f"@{bot_username}" not in message.text:
+    print(f"Bot username: @{bot_username}")
+
+    mention_check = f"@{bot_username}" in message.text
+    print(f"Mention found: {mention_check}")
+
+    if not mention_check:
         return
 
     # Extract search query (remove bot mention)
@@ -51,22 +55,20 @@ async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         photo=movie.poster_url,
                         caption=text,
                         reply_to_message_id=message.message_id,
-                        reply_markup=create_trailer_button(movie.trailer_url),
                     )
                 except Exception as e:
+                    print(f"Error sending photo: {e}")
                     logger.error(f"Error sending photo: {e}")
                     # Fallback to text-only message
                     await message.reply_text(
                         text,
                         reply_to_message_id=message.message_id,
-                        reply_markup=create_trailer_button(movie.trailer_url),
                     )
             else:
                 # Text-only message
                 await message.reply_text(
                     text,
                     reply_to_message_id=message.message_id,
-                    reply_markup=create_trailer_button(movie.trailer_url),
                 )
         else:
             # Not found
@@ -76,19 +78,9 @@ async def handle_group_message(update: Update, context: ContextTypes.DEFAULT_TYP
             )
 
     except Exception as e:
+        print(f"Error searching movie: {e}")
         logger.error(f"Error searching movie: {e}")
         await message.reply_text(
             "An error occurred while searching. Please try again.",
             reply_to_message_id=message.message_id,
         )
-
-
-def create_trailer_button(trailer_url: str) -> Optional[InlineKeyboardMarkup]:
-    """
-    Create inline keyboard with "Watch Trailer" button.
-    """
-    if not trailer_url:
-        return None
-
-    keyboard = [[InlineKeyboardButton("Watch Trailer", url=trailer_url)]]
-    return InlineKeyboardMarkup(keyboard)

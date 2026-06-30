@@ -1,14 +1,19 @@
 import logging
+import os
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
 from config import BOT_TOKEN
 from handlers.group import handle_group_message
 from handlers.private import handle_private_message
 
-# Configure logging
+# Configure logging (force=True overrides any pre-existing handlers)
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    force=True,
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 async def start(update, context):
@@ -37,26 +42,49 @@ async def help_command(update, context):
 
 def main():
     """Start the bot."""
-    # Create the Application
-    application = Application.builder().token(BOT_TOKEN).build()
+    if not BOT_TOKEN:
+        print("ERROR: BOT_TOKEN is not set!")
+        return
 
-    # Add handlers
+    print("Starting bot...")
+
+    application = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .build()
+    )
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
 
-    # Group message handler (when bot is mentioned)
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_group_message)
+        MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, handle_private_message)
+    )
+    application.add_handler(
+        MessageHandler(filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND, handle_group_message)
     )
 
-    # Private chat handler
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_private_message)
-    )
+    port = int(os.environ.get("PORT", 8443))
+    railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN")
 
-    # Run the bot
-    logger.info("Starting bot...")
-    application.run_polling(allowed_updates=["message"])
+    if railway_domain:
+        webhook_url = f"https://{railway_domain}"
+        print(f"Using webhook: {webhook_url}")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=BOT_TOKEN,
+            webhook_url=webhook_url,
+        )
+    else:
+        print("Using polling mode (local development)")
+        application.run_polling(
+            allowed_updates=["message"],
+            drop_pending_updates=True,
+        )
 
 
 if __name__ == "__main__":

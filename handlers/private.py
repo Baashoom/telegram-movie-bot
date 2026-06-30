@@ -1,6 +1,5 @@
 import logging
-from typing import Optional
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
 from services.search import search_movie, parse_search_query
 from utils.formatters import format_movie_message, format_not_found_message
@@ -15,6 +14,9 @@ async def handle_private_message(update: Update, context: ContextTypes.DEFAULT_T
     message = update.message
     if not message or not message.text:
         return
+
+    print(f"Private message received: {message.text}")
+    logger.info(f"Private message received: {message.text}")
 
     query = message.text.strip()
     if not query:
@@ -50,22 +52,20 @@ async def handle_private_message(update: Update, context: ContextTypes.DEFAULT_T
                         photo=movie.poster_url,
                         caption=text,
                         reply_to_message_id=message.message_id,
-                        reply_markup=create_trailer_button(movie.trailer_url),
                     )
                 except Exception as e:
+                    print(f"Error sending photo: {e}")
                     logger.error(f"Error sending photo: {e}")
                     # Fallback to text-only message
                     await message.reply_text(
                         text,
                         reply_to_message_id=message.message_id,
-                        reply_markup=create_trailer_button(movie.trailer_url),
                     )
             else:
                 # Text-only message
                 await message.reply_text(
                     text,
                     reply_to_message_id=message.message_id,
-                    reply_markup=create_trailer_button(movie.trailer_url),
                 )
         else:
             # Not found
@@ -75,6 +75,7 @@ async def handle_private_message(update: Update, context: ContextTypes.DEFAULT_T
             )
 
     except Exception as e:
+        print(f"Error searching movie: {e}")
         logger.error(f"Error searching movie: {e}")
         try:
             await searching_message.delete()
@@ -84,14 +85,3 @@ async def handle_private_message(update: Update, context: ContextTypes.DEFAULT_T
             "An error occurred while searching. Please try again.",
             reply_to_message_id=message.message_id,
         )
-
-
-def create_trailer_button(trailer_url: str) -> Optional[InlineKeyboardMarkup]:
-    """
-    Create inline keyboard with "Watch Trailer" button.
-    """
-    if not trailer_url:
-        return None
-
-    keyboard = [[InlineKeyboardButton("Watch Trailer", url=trailer_url)]]
-    return InlineKeyboardMarkup(keyboard)
