@@ -9,19 +9,26 @@ logger = logging.getLogger(__name__)
 def search_tmdb(query: str, year: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Search TMDB for a movie or TV series.
-    Returns the first match with details, or None if not found.
+    Returns the best match, preferring TV series when both exist.
     """
     try:
-        # Search movies first
+        logger.info(f"Searching TMDB for: {query}")
+
         movie_result = search_tmdb_movies(query, year)
-        if movie_result:
+        tv_result = search_tmdb_tv(query, year)
+
+        if movie_result and tv_result:
+            # Prefer TV series — most user queries for show names want the series
+            logger.info(f"Preferring TV result: {tv_result['title']}")
+            return tv_result
+        elif tv_result:
+            logger.info(f"Found TV series: {tv_result['title']}")
+            return tv_result
+        elif movie_result:
+            logger.info(f"Found movie: {movie_result['title']}")
             return movie_result
 
-        # Then search TV series
-        tv_result = search_tmdb_tv(query, year)
-        if tv_result:
-            return tv_result
-
+        logger.info(f"Not found on TMDB: {query}")
         return None
 
     except Exception as e:
@@ -34,6 +41,7 @@ def search_tmdb_movies(query: str, year: Optional[str] = None) -> Optional[Dict[
     Search TMDB for movies.
     """
     try:
+        logger.info(f"Searching TMDB movies for: {query}")
         params = {
             "api_key": TMDB_API_KEY,
             "query": query,
@@ -43,16 +51,21 @@ def search_tmdb_movies(query: str, year: Optional[str] = None) -> Optional[Dict[
         if year:
             params["year"] = year
 
+        logger.info(f"TMDB API key: {TMDB_API_KEY[:8]}..." if TMDB_API_KEY else "No API key")
         response = requests.get(f"{TMDB_BASE_URL}/search/movie", params=params, timeout=10)
+        logger.info(f"TMDB response status: {response.status_code}")
         response.raise_for_status()
 
         data = response.json()
+        logger.info(f"TMDB results count: {len(data.get('results', []))}")
+
         if not data.get("results"):
             return None
 
         # Get first result
         first_movie = data["results"][0]
         movie_id = first_movie["id"]
+        logger.info(f"Found movie: {first_movie.get('title')} (ID: {movie_id})")
 
         # Get detailed information
         return get_movie_details(movie_id)

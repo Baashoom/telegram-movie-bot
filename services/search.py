@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 import logging
 from services.imdb import search_imdb
 from services.tmdb import search_tmdb
-from services.youtube import search_trailer
 from models.movie import MovieResult
 
 logger = logging.getLogger(__name__)
@@ -42,30 +41,10 @@ def search_movie(title: str, year: Optional[str] = None) -> Optional[MovieResult
     """
     logger.info(f"Searching for: {title} ({year})")
 
-    # Try IMDb first
-    result = search_imdb(title, year)
-    if result:
-        logger.info(f"Found on IMDb: {result['title']}")
-        # Search for trailer
-        trailer_url = search_trailer(result["title"], result.get("year"))
-        return MovieResult(
-            title=result["title"],
-            year=result.get("year"),
-            poster_url=result.get("poster_url", ""),
-            plot=result.get("plot", ""),
-            rating=result.get("rating", 0.0),
-            rating_source="imdb",
-            genres=result.get("genres", []),
-            trailer_url=trailer_url,
-            media_type=result.get("media_type", "film"),
-        )
-
-    # Try TMDB as fallback
+    # Try TMDB first (reliable API)
     result = search_tmdb(title, year)
     if result:
         logger.info(f"Found on TMDB: {result['title']}")
-        # Search for trailer
-        trailer_url = search_trailer(result["title"], result.get("year"))
         return MovieResult(
             title=result["title"],
             year=result.get("year"),
@@ -74,7 +53,23 @@ def search_movie(title: str, year: Optional[str] = None) -> Optional[MovieResult
             rating=result.get("rating", 0.0),
             rating_source="tmdb",
             genres=result.get("genres", []),
-            trailer_url=trailer_url,
+            trailer_url=None,
+            media_type=result.get("media_type", "film"),
+        )
+
+    # Try IMDb as fallback (suggestion API)
+    result = search_imdb(title, year)
+    if result:
+        logger.info(f"Found on IMDb: {result['title']}")
+        return MovieResult(
+            title=result["title"],
+            year=result.get("year"),
+            poster_url=result.get("poster_url", ""),
+            plot=result.get("plot", ""),
+            rating=result.get("rating", 0.0),
+            rating_source="imdb",
+            genres=result.get("genres", []),
+            trailer_url=None,
             media_type=result.get("media_type", "film"),
         )
 
